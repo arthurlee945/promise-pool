@@ -1,14 +1,17 @@
 {
     "compilerOptions": {
         "target": "es2022",
-        "module": "ES2022",
-
+        // "module": "ES2022",
+        // "moduleResolution": "node",
+        "moduleResolution": "NodeNext",
+        "module": "NodeNext",
+        "sourceMap": true,
         "declaration": true,
+
         "esModuleInterop": true,
         "forceConsistentCasingInFileNames": true,
         "inlineSources": false,
         "isolatedModules": true,
-        "moduleResolution": "node",
         "moduleDetection": "force",
 
         "strict": true,
@@ -30,5 +33,5 @@
         "outDir": "./dist"
     },
     "include": ["src/**/*"],
-    "exclude": ["node_modules", "tests/**/*", "./dist"]
+    "exclude": ["node_modules", "./dist"]
 }

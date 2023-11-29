@@ -1,14 +1,15 @@
 import { EventEmitter } from 'events';
-import { dPromise, type DeferredPromise } from "../utility/dPromise";
+import { QPPError } from '../error/QPPError';
+import { dPromise, type DeferredPromise } from '../utility/dPromise';
 
 const emitterEvents = {
     stream: 'stream',
-    processRequest: 'processRequest',
+    process: 'process',
 } as const;
 
-export type PromisePoolOpts<T> = { items: Promise<T>[]; concurrency?: number; stream?: (_data: T[]) => void };
+export type PromisePoolOpts<T> = { items?: Promise<T>[]; concurrency?: number; stream?: (_data: T[]) => void };
 
-export class PromisePool<T> {
+export class PromisePool<T = unknown> {
     /**
      * Currently running tasks
      */
@@ -21,8 +22,14 @@ export class PromisePool<T> {
      * emitter to check if new item's been added to items.
      */
     private emitter: EventEmitter;
-    private taskPromise?: DeferredPromise<{ continue: boolean; stop: boolean }>;
-    private taskSettings = { changed: false, stopRequested: false };
+    /**
+     * task meta data to keep track on actions
+     */
+    private taskMeta: {
+        changed: boolean;
+        stop: boolean;
+        dPromise: DeferredPromise<{ continue: boolean; stop: boolean }> | null;
+    } = { changed: false, stop: false, dPromise: null };
     /**
      * The processable promises.
      */
@@ -37,7 +44,7 @@ export class PromisePool<T> {
         this.items = items ?? [];
         this.settings = { stream: !!stream, concurrency: concurrency ?? 10 };
         this.emitter = new EventEmitter();
-        this.emitter.on(emitterEvents.processRequest, () => this.processTask);
+        this.emitter.on(emitterEvents.process, () => this.processTask);
         if (stream) this.emitter.on(emitterEvents.stream, stream);
     }
 
@@ -49,7 +56,7 @@ export class PromisePool<T> {
      */
     enqueue(items: Promise<T>[]) {
         this.items.push(...items);
-        this.taskSettings.changed = true;
+        this.taskMeta.changed = this.isProcessing();
         return this;
     }
     /**
@@ -66,6 +73,7 @@ export class PromisePool<T> {
     peek() {
         return this.items[0];
     }
+    //-------------------------STATUS
     /**
      * Check if there are processable items in queue
      * @returns {boolean}
@@ -78,7 +86,21 @@ export class PromisePool<T> {
      * @returns {boolean}
      */
     isProcessing() {
-        return this.tasks.length === 0;
+        return this.tasks.length !== 0;
+    }
+    /**
+     * Check if items to process changed
+     * @returns {boolean}
+     */
+    itemChanged() {
+        return this.taskMeta.changed;
+    }
+    /**
+     * Check if process stop requested
+     * @returns {boolean}
+     */
+    stopRequested() {
+        return this.taskMeta.stop;
     }
     //--------------------------PROCESSING----------------------------
     /**
@@ -89,41 +111,51 @@ export class PromisePool<T> {
         this.settings.concurrency = concurrency;
     }
     stop() {
-        this.taskSettings.stopRequested = true;
+        this.taskMeta.stop = true;
+    }
+    private resetTaskMeta() {
+        this.taskMeta.changed = false;
+        this.taskMeta.stop = false;
+        this.taskMeta.dPromise = null;
     }
     private processTask = async () => {
-        if (!this.taskPromise) return;
-        if (this.isProcessing()) this.taskPromise.reject('Invalid Request');
+        if (!this.taskMeta.dPromise) throw new QPPError({ code: 'BAD_REQUEST', message: 'Deferred promise is not present' });
+        if (this.isProcessing()) this.taskMeta.dPromise.reject('Invalid Request');
+        console.log('Inside Emitter Event, before procesing');
 
         this.results.push(...(await Promise.allSettled(this.tasks)));
+        console.log('after processing', this.results);
         this.tasks.splice(0, this.settings.concurrency);
         if (this.settings.stream) this.emitter.emit(emitterEvents.stream, this.results);
-        this.taskPromise.resolve({ continue: !this.taskSettings.changed, stop: this.taskSettings.stopRequested });
+        this.taskMeta.dPromise.resolve({ continue: !this.taskMeta.changed, stop: this.taskMeta.stop });
     };
+
     async process(): Promise<PromiseSettledResult<T>[]> {
-        if (this.isEmpty() || this.isProcessing()) return this.results;
+        if (this.isEmpty() || (this.isProcessing() && !this.taskMeta.changed)) return this.results;
+
+        if (!this.taskMeta.changed) this.results.splice(0, this.results.length);
+        else this.taskMeta.changed = false;
 
         for (let i = 0; i < Math.ceil(this.items.length / this.settings.concurrency); i++) {
             this.tasks.push(...this.dequeue());
-            this.taskPromise = dPromise();
-            this.emitter.emit(emitterEvents.processRequest);
-            const taskResult = await this.taskPromise.promise;
+            this.taskMeta.dPromise = dPromise();
+            console.log(this.tasks, 'task to run');
+            this.emitter.emit(emitterEvents.process); //REMOVE THIS
+            const taskResult = await this.taskMeta.dPromise.promise;
+            console.log(taskResult, 'task ran');
 
             if (taskResult.stop) {
-                this.taskSettings.changed = false;
-                this.taskSettings.stopRequested = false;
+                this.resetTaskMeta();
                 return this.results;
             }
 
             if (!taskResult.continue) {
-                this.taskSettings.changed = false;
                 await this.process();
                 break;
             }
         }
 
-        this.taskSettings.changed = false;
-        this.taskSettings.stopRequested = false;
+        this.resetTaskMeta();
         return this.results;
     }
 }
