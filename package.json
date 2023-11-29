@@ -10,7 +10,7 @@
         "lint": "eslint . --ext .js,.ts",
         "lint:fix": "eslint --fix . --ext .js,.ts",
         "format": "prettier --write .",
-        "clean": "git clean -xdf node_modules && rm -rf pnpm-lock.yaml",
+        "clean": "rm -rf node_modules pnpm-lock.yaml",
         "prepare": "husky install"
     },
     "keywords": [
