@@ -1,8 +1,8 @@
 import { PromisePool } from '../dist/src';
 
 function pause(seconds?: number) {
-    return new Promise<void>((resolve) => {
-        setTimeout(() => resolve(), seconds ?? 3e3);
+    return new Promise<string>((resolve) => {
+        setTimeout(() => resolve('Paused for ' + seconds ?? 3e3), seconds ?? 3e3);
     });
 }
 
@@ -11,6 +11,7 @@ async function randomDogImageFetch() {
 }
 test('base-use-case', async () => {
     const promiseSet = [randomDogImageFetch(), randomDogImageFetch(), randomDogImageFetch(), pause(), randomDogImageFetch()];
+    console.log(promiseSet);
     const qpp = new PromisePool<unknown>({
         items: promiseSet,
         concurrency: 2,

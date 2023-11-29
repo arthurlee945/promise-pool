@@ -1,6 +1,4 @@
 import { EventEmitter } from 'events';
-import { QPPError } from '../error/QPPError';
-import { dPromise, type DeferredPromise } from '../utility/dPromise';
 
 const emitterEvents = {
     stream: 'stream',
@@ -25,11 +23,7 @@ export class PromisePool<T = unknown> {
     /**
      * task meta data to keep track on actions
      */
-    private taskMeta: {
-        changed: boolean;
-        stop: boolean;
-        dPromise: DeferredPromise<{ continue: boolean; stop: boolean }> | null;
-    } = { changed: false, stop: false, dPromise: null };
+    private taskMeta = { changed: false, stop: false };
     /**
      * The processable promises.
      */
@@ -44,7 +38,7 @@ export class PromisePool<T = unknown> {
         this.items = items ?? [];
         this.settings = { stream: !!stream, concurrency: concurrency ?? 10 };
         this.emitter = new EventEmitter();
-        this.emitter.on(emitterEvents.process, () => this.processTask);
+        // this.emitter.on(emitterEvents.process, () => this.processTask);
         if (stream) this.emitter.on(emitterEvents.stream, stream);
     }
 
@@ -73,7 +67,7 @@ export class PromisePool<T = unknown> {
     peek() {
         return this.items[0];
     }
-    //-------------------------STATUS
+    //-------------------------STATUS CHECK----------------------------
     /**
      * Check if there are processable items in queue
      * @returns {boolean}
@@ -116,40 +110,35 @@ export class PromisePool<T = unknown> {
     private resetTaskMeta() {
         this.taskMeta.changed = false;
         this.taskMeta.stop = false;
-        this.taskMeta.dPromise = null;
     }
-    private processTask = async () => {
-        if (!this.taskMeta.dPromise) throw new QPPError({ code: 'BAD_REQUEST', message: 'Deferred promise is not present' });
-        if (this.isProcessing()) this.taskMeta.dPromise.reject('Invalid Request');
-        console.log('Inside Emitter Event, before procesing');
+    // private processTask = async () => {
+    //     if (!this.taskMeta.dPromise) throw new QPPError({ code: 'BAD_REQUEST', message: 'Deferred promise is not present' });
+    //     if (this.isProcessing()) this.taskMeta.dPromise.reject('Invalid Request');
+    //     console.log('Inside Emitter Event, before procesing');
 
-        this.results.push(...(await Promise.allSettled(this.tasks)));
-        console.log('after processing', this.results);
-        this.tasks.splice(0, this.settings.concurrency);
-        if (this.settings.stream) this.emitter.emit(emitterEvents.stream, this.results);
-        this.taskMeta.dPromise.resolve({ continue: !this.taskMeta.changed, stop: this.taskMeta.stop });
-    };
-
+    //     this.results.push(...(await Promise.allSettled(this.tasks)));
+    //     console.log('after processing', this.results);
+    //     this.tasks.splice(0, this.settings.concurrency);
+    //     if (this.settings.stream) this.emitter.emit(emitterEvents.stream, this.results);
+    //     this.taskMeta.dPromise.resolve({ continue: !this.taskMeta.changed, stop: this.taskMeta.stop });
+    // };
     async process(): Promise<PromiseSettledResult<T>[]> {
-        if (this.isEmpty() || (this.isProcessing() && !this.taskMeta.changed)) return this.results;
-
-        if (!this.taskMeta.changed) this.results.splice(0, this.results.length);
+        if (this.isEmpty() || (this.isProcessing() && !this.itemChanged())) return this.results;
+        if (!this.itemChanged()) this.results.splice(0, this.results.length);
         else this.taskMeta.changed = false;
 
         for (let i = 0; i < Math.ceil(this.items.length / this.settings.concurrency); i++) {
             this.tasks.push(...this.dequeue());
-            this.taskMeta.dPromise = dPromise();
-            console.log(this.tasks, 'task to run');
-            this.emitter.emit(emitterEvents.process); //REMOVE THIS
-            const taskResult = await this.taskMeta.dPromise.promise;
-            console.log(taskResult, 'task ran');
+            this.results.push(...(await Promise.allSettled(this.tasks)));
+            this.tasks.splice(0, this.settings.concurrency);
+            if (this.settings.stream) this.emitter.emit(emitterEvents.stream, this.results);
 
-            if (taskResult.stop) {
+            if (this.stopRequested()) {
                 this.resetTaskMeta();
                 return this.results;
             }
 
-            if (!taskResult.continue) {
+            if (this.itemChanged()) {
                 await this.process();
                 break;
             }

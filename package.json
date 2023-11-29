@@ -9,7 +9,7 @@
     "types": "dist",
     "scripts": {
         "build": "tsc",
-        "start": "ts-node ./src/test.ts",
+        "start": "ts-node ./src/placeholder.ts",
         "test": "jest",
         "lint": "eslint src --ext .js,.ts",
         "lint:fix": "eslint --fix src --ext .js,.ts",
