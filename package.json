@@ -1,7 +1,7 @@
 {
     "name": "promise-pool",
     "version": "0.0.1",
-    "description": "",
+    "description": "Queue based promise pool",
     "main": "./src/index.ts",
     "scripts": {
         "build": "tsc",

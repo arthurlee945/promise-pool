@@ -33,7 +33,7 @@ const config = {
         '@typescript-eslint/no-var-requires': 0,
         'import/consistent-type-specifier-style': ['error', 'prefer-inline'],
     },
-    ignorePatterns: ['**/.eslintrc.cjs', '**/*.config.js', '**/*.config.cjs', 'dist', 'tests/**/*', 'pnpm-lock.yaml'],
+    ignorePatterns: ['**/.eslintrc.cjs', '**/*.config.js', '**/*.config.cjs', 'dist', 'tests/**/*', 'pnpm-lock.yaml', 'node_modules'],
     reportUnusedDisableDirectives: true,
 };
 module.exports = config;
