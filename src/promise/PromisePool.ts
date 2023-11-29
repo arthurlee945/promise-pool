@@ -126,18 +126,16 @@ export class PromisePool<T = unknown> {
         if (this.isEmpty() || (this.isProcessing() && !this.itemChanged())) return this.results;
         if (!this.itemChanged()) this.results.splice(0, this.results.length);
         else this.taskMeta.changed = false;
-
-        for (let i = 0; i < Math.ceil(this.items.length / this.settings.concurrency); i++) {
+        const loopCount = Math.ceil(this.items.length / this.settings.concurrency);
+        for (let i = 0; i < loopCount; i++) {
             this.tasks.push(...this.dequeue());
             this.results.push(...(await Promise.allSettled(this.tasks)));
             this.tasks.splice(0, this.settings.concurrency);
             if (this.settings.stream) this.emitter.emit(emitterEvents.stream, this.results);
-
             if (this.stopRequested()) {
                 this.resetTaskMeta();
                 return this.results;
             }
-
             if (this.itemChanged()) {
                 await this.process();
                 break;
