@@ -23,6 +23,9 @@
         "async",
         "map"
     ],
+    "publishConfig": {
+        "access": "public"
+     },
     "author": "arthur lee",
     "license": "MIT",
     "devDependencies": {
