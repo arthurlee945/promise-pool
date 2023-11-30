@@ -4,17 +4,19 @@ const emitterEvents = {
     stream: 'stream',
 } as const;
 
+//eslint-disable-next-line
+type ProcessableItem<T> = (..._args: any[]) => Promise<T>;
 export type PromisePoolOpts<T> = { concurrency?: number; processOnQueue?: boolean; stream?: (_data: T[]) => void };
 
 export class PromisePool<T = unknown> {
     /**
      * The processable promises.
      */
-    readonly items: Promise<T>[];
+    readonly items: ProcessableItem<T>[];
     /**
      * Currently running tasks
      */
-    readonly tasks: Promise<T>[] = [];
+    readonly tasks: ProcessableItem<T>[] = [];
     /**
      * results
      */
@@ -37,10 +39,10 @@ export class PromisePool<T = unknown> {
     private readonly settings: { stream: boolean; concurrency: number };
     /**
      *
-     * @param {Promise<T>[]} items Promises to Process
+     * @param {ProcessableItem<T>[]} items Promises to Process
      * @param {settings} settings Default | concurrency is 10, processOnQueue is true
      */
-    constructor(items: Promise<T>[] = [], { concurrency, stream }: PromisePoolOpts<T>) {
+    constructor(items: ProcessableItem<T>[] = [], { concurrency, stream }: PromisePoolOpts<T>) {
         this.items = items ?? [];
         this.settings = { concurrency: concurrency ?? 10, stream: !!stream };
         this.emitter = new EventEmitter();
@@ -50,14 +52,14 @@ export class PromisePool<T = unknown> {
     //--------------------------QUEUE----------------------------
     /**
      * Add a promise to the queue
-     * @param {Promise<T>} items
+     * @param {ProcessableItem<T>} items
      * @returns {PromisePool}
      */
     enqueue<TProcess extends boolean>(
-        _items: Promise<T>[],
+        _items: ProcessableItem<T>[],
         _processOnQueue?: TProcess
     ): TProcess extends true ? Promise<PromiseSettledResult<T>[]> : this;
-    enqueue(items: Promise<T>[], processOnQueue?: boolean): Promise<PromiseSettledResult<T>[]> | PromisePool {
+    enqueue(items: ProcessableItem<T>[], processOnQueue?: boolean): Promise<PromiseSettledResult<T>[]> | PromisePool {
         this.items.push(...items);
         this.taskMeta.updated = !!this.runningProcess;
         if (processOnQueue) return !this.runningProcess ? this.process() : this.runningProcess;
@@ -116,7 +118,7 @@ export class PromisePool<T = unknown> {
         const loopCount = Math.ceil(this.items.length / this.settings.concurrency);
         for (let i = 0; i < loopCount; i++) {
             this.tasks.push(...this.dequeue());
-            this.results.push(...(await Promise.allSettled(this.tasks)));
+            this.results.push(...(await Promise.allSettled(this.tasks.map((t) => t()))));
             this.tasks.splice(0, this.settings.concurrency);
             if (this.settings.stream) this.emitter.emit(emitterEvents.stream, this.results);
             if (this.checkTaskMeta('stopped')) return this.getResult();

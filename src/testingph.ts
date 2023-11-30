@@ -14,13 +14,13 @@ async function randomDogImageFetch() {
 //eslint-disable-next-line
 (async () => {
     const promiseSet = [
-        randomDogImageFetch(),
-        randomDogImageFetch(),
-        randomDogImageFetch(),
-        randomDogImageFetch(),
-        pause(5e3),
-        randomDogImageFetch(),
-        randomDogImageFetch(),
+        randomDogImageFetch,
+        randomDogImageFetch,
+        randomDogImageFetch,
+        randomDogImageFetch,
+        pause.bind(null, 5e3),
+        randomDogImageFetch,
+        randomDogImageFetch,
     ];
     try {
         let i = 0;
@@ -31,8 +31,7 @@ async function randomDogImageFetch() {
                 console.log('//----------------------LB');
             },
         });
-
-        console.log(await qpp.process(), 'Finalized');
+        await qpp.process();
         // let i = 0;
         // const qpp = new PromisePool(promiseSet, {
         //     concurrency: 2,

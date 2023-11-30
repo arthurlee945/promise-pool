@@ -11,7 +11,7 @@ async function randomDogImageFetch() {
 }
 test('base-use-case', async () => {
     const promiseCount = Math.ceil(Math.random() * 10);
-    const promiseSet = new Array(promiseCount).fill(0).map((_) => (Math.random() <= 0.7 ? randomDogImageFetch() : pause(1500)));
+    const promiseSet = new Array(promiseCount).fill(0).map((_) => (Math.random() <= 0.7 ? randomDogImageFetch : pause.bind(null, 1500)));
     const qpp = new PromisePool<unknown>(promiseSet, {
         concurrency: 2,
     });
