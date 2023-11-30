@@ -2,12 +2,15 @@ import { EventEmitter } from 'events';
 
 const emitterEvents = {
     stream: 'stream',
-    process: 'process',
 } as const;
 
-export type PromisePoolOpts<T> = { items?: Promise<T>[]; concurrency?: number; stream?: (_data: T[]) => void };
+export type PromisePoolOpts<T> = { concurrency?: number; processOnQueue?: boolean; stream?: (_data: T[]) => void };
 
 export class PromisePool<T = unknown> {
+    /**
+     * The processable promises.
+     */
+    readonly items: Promise<T>[];
     /**
      * Currently running tasks
      */
@@ -21,24 +24,26 @@ export class PromisePool<T = unknown> {
      */
     private emitter: EventEmitter;
     /**
-     * task meta data to keep track on actions
+     * currently running promise
      */
-    private taskMeta = { changed: false, stop: false };
+    private runningProcess: Promise<PromiseSettledResult<T>[]> | null = null;
     /**
-     * The processable promises.
+     * task meta to keep track on actions
      */
-    private readonly items: Promise<T>[];
+    private readonly taskMeta = { updated: false, stopped: false };
+    /**
+     * class settings
+     */
     private readonly settings: { stream: boolean; concurrency: number };
-
     /**
      *
-     * @param {Promise<T>[]} items Promises to Process in concurrency limit (Default: 10)
+     * @param {Promise<T>[]} items Promises to Process
+     * @param {settings} settings Default | concurrency is 10, processOnQueue is true
      */
-    constructor({ items, concurrency, stream }: PromisePoolOpts<T>) {
+    constructor(items: Promise<T>[] = [], { concurrency, stream }: PromisePoolOpts<T>) {
         this.items = items ?? [];
-        this.settings = { stream: !!stream, concurrency: concurrency ?? 10 };
+        this.settings = { concurrency: concurrency ?? 10, stream: !!stream };
         this.emitter = new EventEmitter();
-        // this.emitter.on(emitterEvents.process, () => this.processTask);
         if (stream) this.emitter.on(emitterEvents.stream, stream);
     }
 
@@ -48,9 +53,14 @@ export class PromisePool<T = unknown> {
      * @param {Promise<T>} items
      * @returns {PromisePool}
      */
-    enqueue(items: Promise<T>[]) {
+    enqueue<TProcess extends boolean>(
+        _items: Promise<T>[],
+        _processOnQueue?: TProcess
+    ): TProcess extends true ? Promise<PromiseSettledResult<T>[]> : this;
+    enqueue(items: Promise<T>[], processOnQueue?: boolean): Promise<PromiseSettledResult<T>[]> | PromisePool {
         this.items.push(...items);
-        this.taskMeta.changed = this.isProcessing();
+        this.taskMeta.updated = !!this.runningProcess;
+        if (processOnQueue) return !this.runningProcess ? this.process() : this.runningProcess;
         return this;
     }
     /**
@@ -67,7 +77,7 @@ export class PromisePool<T = unknown> {
     peek() {
         return this.items[0];
     }
-    //-------------------------STATUS CHECK----------------------------
+    //-------------------------TASK META CHECK----------------------------
     /**
      * Check if there are processable items in queue
      * @returns {boolean}
@@ -76,25 +86,11 @@ export class PromisePool<T = unknown> {
         return this.items.length === 0;
     }
     /**
-     * Check if there are  processing tasks
+     * Check task meta
      * @returns {boolean}
      */
-    isProcessing() {
-        return this.tasks.length !== 0;
-    }
-    /**
-     * Check if items to process changed
-     * @returns {boolean}
-     */
-    itemChanged() {
-        return this.taskMeta.changed;
-    }
-    /**
-     * Check if process stop requested
-     * @returns {boolean}
-     */
-    stopRequested() {
-        return this.taskMeta.stop;
+    checkTaskMeta(opt: keyof typeof this.taskMeta) {
+        return this.taskMeta[opt];
     }
     //--------------------------PROCESSING----------------------------
     /**
@@ -105,44 +101,33 @@ export class PromisePool<T = unknown> {
         this.settings.concurrency = concurrency;
     }
     stop() {
-        this.taskMeta.stop = true;
+        this.taskMeta.stopped = true;
     }
-    private resetTaskMeta() {
-        this.taskMeta.changed = false;
-        this.taskMeta.stop = false;
+    private getResult() {
+        this.taskMeta.updated = false;
+        this.taskMeta.stopped = false;
+        this.runningProcess = null;
+        return this.results;
     }
-    // private processTask = async () => {
-    //     if (!this.taskMeta.dPromise) throw new QPPError({ code: 'BAD_REQUEST', message: 'Deferred promise is not present' });
-    //     if (this.isProcessing()) this.taskMeta.dPromise.reject('Invalid Request');
-    //     console.log('Inside Emitter Event, before procesing');
-
-    //     this.results.push(...(await Promise.allSettled(this.tasks)));
-    //     console.log('after processing', this.results);
-    //     this.tasks.splice(0, this.settings.concurrency);
-    //     if (this.settings.stream) this.emitter.emit(emitterEvents.stream, this.results);
-    //     this.taskMeta.dPromise.resolve({ continue: !this.taskMeta.changed, stop: this.taskMeta.stop });
-    // };
-    async process(): Promise<PromiseSettledResult<T>[]> {
-        if (this.isEmpty() || (this.isProcessing() && !this.itemChanged())) return this.results;
-        if (!this.itemChanged()) this.results.splice(0, this.results.length);
-        else this.taskMeta.changed = false;
+    private async taskProcess(): Promise<PromiseSettledResult<T>[]> {
+        if (this.isEmpty() || (this.runningProcess && !this.checkTaskMeta('updated'))) return this.results;
+        if (!this.checkTaskMeta('updated')) this.results.splice(0, this.results.length);
+        else this.taskMeta.updated = false;
         const loopCount = Math.ceil(this.items.length / this.settings.concurrency);
         for (let i = 0; i < loopCount; i++) {
             this.tasks.push(...this.dequeue());
             this.results.push(...(await Promise.allSettled(this.tasks)));
             this.tasks.splice(0, this.settings.concurrency);
             if (this.settings.stream) this.emitter.emit(emitterEvents.stream, this.results);
-            if (this.stopRequested()) {
-                this.resetTaskMeta();
-                return this.results;
-            }
-            if (this.itemChanged()) {
-                await this.process();
+            if (this.checkTaskMeta('stopped')) return this.getResult();
+            if (this.checkTaskMeta('updated')) {
+                await this.taskProcess();
                 break;
             }
         }
-
-        this.resetTaskMeta();
-        return this.results;
+        return this.getResult();
+    }
+    process() {
+        return (this.runningProcess = this.taskProcess());
     }
 }
