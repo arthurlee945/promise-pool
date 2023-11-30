@@ -25,7 +25,7 @@ async function randomDogImageFetch() {
     try {
         let i = 0;
         const qpp = new PromisePool(promiseSet, {
-            concurrency: 2,
+            concurrency: 1,
             stream: (data) => {
                 console.log(data, 'stream-' + i++);
                 console.log('//----------------------LB');

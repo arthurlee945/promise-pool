@@ -8,7 +8,7 @@
     "main": "dist",
     "types": "dist",
     "scripts": {
-        "build": "tsc",
+        "build": "tsc & cp ./src/types.d.ts ./dist",
         "start": "ts-node ./src/testingph.ts",
         "test": "jest",
         "lint": "eslint src --ext .js,.ts",
