@@ -1,4 +1,4 @@
-import { PromisePool } from '../dist/src';
+import { PromisePool } from '../dist';
 
 function pause(milliseconds?: number) {
     return new Promise<string>((resolve) => {
