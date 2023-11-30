@@ -1,5 +1,6 @@
 import { PromisePool } from '.';
 
+//ADD ERROR HANDLING
 function pause(seconds?: number) {
     return new Promise<string>((resolve) => {
         setTimeout(() => resolve('Paused for ' + seconds ?? 2e3), seconds ?? 2e3);
