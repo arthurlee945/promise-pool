@@ -25,21 +25,14 @@ async function randomDogImageFetch() {
     try {
         let i = 0;
         const qpp = new PromisePool(promiseSet, {
-            concurrency: 1,
+            concurrency: 2,
             stream: (data) => {
                 console.log(data, 'stream-' + i++);
-                console.log('//----------------------LB');
             },
         });
-        await qpp.process();
-        // let i = 0;
-        // const qpp = new PromisePool(promiseSet, {
-        //     concurrency: 2,
-        //     stream: (data) => {
-        //         console.log(data, 'stream-' + i++);
-        //     },
-        // });
-        // qpp.enqueue([pause(5e3, 'Added it from QUEUE 1, Should Trigger stream'), randomDogImageFetch()], false);
+        qpp.enqueue([pause.bind(null, 5e3, 'Added it from QUEUE 1, Should Trigger stream'), randomDogImageFetch], false);
+        console.log(qpp.checkTaskMeta('isProcessing'));
+        console.log('/-------------------------------Start Processing');
     } catch (err) {
         console.log(JSON.stringify(err));
     }

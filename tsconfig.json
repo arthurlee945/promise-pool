@@ -2,10 +2,10 @@
     "compilerOptions": {
         "target": "es2022",
         "rootDir": "./src",
-        // "module": "ES2022",
-        // "moduleResolution": "node",
-        "moduleResolution": "NodeNext",
+        "outDir": "./dist",
         "module": "NodeNext",
+        "moduleResolution": "NodeNext",
+        "lib": ["es2017", "es7", "es6", "es2022"],
         "sourceMap": true,
         "declaration": true,
 
@@ -16,22 +16,19 @@
         "moduleDetection": "force",
 
         "strict": true,
+        "strictNullChecks": true,
         "noUnusedLocals": false,
         "noUnusedParameters": false,
         "noUncheckedIndexedAccess": true,
-
         "noFallthroughCasesInSwitch": true,
-        "preserveWatchOutput": true,
+
         "skipLibCheck": true,
+        "preserveWatchOutput": true,
 
         "incremental": true,
-        "strictNullChecks": true,
         "composite": true,
         "allowJs": true,
-        "lib": ["es2017", "es7", "es6", "es2022"],
-        "resolveJsonModule": true,
-
-        "outDir": "./dist"
+        "resolveJsonModule": true
     },
     "include": ["src/**/*"],
     "exclude": ["node_modules", "./dist"]
