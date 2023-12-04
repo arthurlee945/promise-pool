@@ -4,9 +4,9 @@ const emitterEvents = {
     stream: 'stream',
 } as const;
 
-//eslint-disable-next-line
+//eslint-disable-next-line @typescript-eslint/no-explicit-any
 type ProcessableItem<TReturn> = (..._args: any[]) => Promise<TReturn>;
-type TaskReturnType<TReturn, TSettle> = TSettle extends true ? PromiseSettledResult<Awaited<TReturn>> : Awaited<TReturn>;
+type TaskReturnType<TReturn = unknown, TSettle = true> = TSettle extends true ? PromiseSettledResult<TReturn> : TReturn;
 export type PromisePoolOpts<TReturn = unknown, TSettle extends boolean = true> = {
     concurrency?: number;
     processOnQueue?: boolean;
@@ -42,7 +42,7 @@ export class PromisePool<TReturn = unknown, TSettle extends boolean = true> {
     /**
      * task meta to keep track on actions
      */
-    private readonly taskMeta = { updated: false, stopped: false, isProcessing: false };
+    private readonly taskMeta: { updated: boolean; stopped: boolean; isProcessing: boolean };
     /**
      * class settings
      */
@@ -55,6 +55,7 @@ export class PromisePool<TReturn = unknown, TSettle extends boolean = true> {
     constructor(items: ProcessableItem<TReturn>[] = [], opts: PromisePoolOpts<TReturn, TSettle> = {}) {
         this.items = items;
         this.stream = opts?.stream;
+        this.taskMeta = { updated: false, stopped: false, isProcessing: false };
         this.emitter = new EventEmitter();
         this.settings = { settle: opts.settle ?? true, concurrency: opts.concurrency ?? 10, stream: !!this.stream };
         if (this.stream) this.emitter.on(emitterEvents.stream, this.stream);
@@ -95,7 +96,7 @@ export class PromisePool<TReturn = unknown, TSettle extends boolean = true> {
     }
     //#endregion
 
-    //#region -------------------------TASK META CHECK----------------------------
+    //#region -------------------------META CHECK----------------------------
     /**
      * Check if there are processable items in queue
      * @returns { boolean }
@@ -147,18 +148,12 @@ export class PromisePool<TReturn = unknown, TSettle extends boolean = true> {
         if (this.isEmpty() || (this.runningProcess && !this.checkTaskMeta('updated'))) return this.results;
         if (!this.checkTaskMeta('updated')) this.results.splice(0, this.results.length);
         else this.taskMeta.updated = false;
-        if (this.settings.settle) {
-            this.results.push(...(await Promise.all([])));
-        } else {
-            this.results.push(...(await Promise.allSettled([])));
-        }
+
         const loopCount = Math.ceil(this.items.length / this.settings.concurrency);
         for (let i = 0; i < loopCount; i++) {
             this.tasks.push(...this.dequeue());
             const taskPromises = this.tasks.map((t) => t());
-            // if (this.settings.settle) this.results.push(...(await Promise.allSettled(taskPromises)));
-            // else this.results.push(...(await Promise.all(taskPromises)));
-            //FIX this
+
             this.results.push(
                 ...((await (this.settings.settle ? Promise.allSettled(taskPromises) : Promise.all(taskPromises))) as TaskReturnType<
                     TReturn,

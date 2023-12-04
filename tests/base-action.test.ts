@@ -9,7 +9,7 @@ function pause(milliseconds?: number) {
 
 function throwErr(milliseconds?: number) {
     return new Promise<string>((_, reject) => {
-        setTimeout(() => reject('Paused for ' + milliseconds ?? 3e3 + ' and threw error'), milliseconds ?? 3e3);
+        setTimeout(() => reject(new Error('Paused for ' + milliseconds ?? 3e3 + ' and threw error')), milliseconds ?? 3e3);
     });
 }
 async function randomDogImageFetch() {
@@ -30,9 +30,9 @@ test('base-processing (mode: allSettled)', async () => {
 
 test('base-error-handling-check (mode: all)', async () => {
     const qpp = new PromisePool([throwErr.bind(null, 1e3)], {
-        mode: 'all',
+        settle: false,
     });
-    expect(await qpp.process()).toThrow();
+    expect(qpp.process).toThrow();
 });
 
 test('queuing-items-resolve-reject-check', async () => {
@@ -51,7 +51,8 @@ test('queuing-items-resolve-reject-check', async () => {
             )
             .process()
     )[0];
-    expect(resolveArr).toBe({ status: 'fulfilled', value: 'queued promise' });
+
+    expect(resolveArr).toStrictEqual({ status: 'fulfilled', value: 'queued promise' });
     expect(qpp.checkTaskMeta('isProcessing')).toEqual(false);
 
     //Process on Queue
@@ -65,7 +66,7 @@ test('queuing-items-resolve-reject-check', async () => {
         true
     );
     expect(rejectArr.length).toBe(1);
-    expect(rejectArr[0]).toBe({ status: 'rejected', reason: 'queued promise 2' });
+    expect(rejectArr[0]).toStrictEqual({ status: 'rejected', reason: 'queued promise 2' });
     expect(qpp.checkTaskMeta('isProcessing')).toBe(false);
 });
 
@@ -80,6 +81,9 @@ test('task-processing-status-checks', async () => {
     });
     //ADD forced delay with queue
     const fProcess = qpp.enqueue([pause.bind(null, 2e3), pause.bind(null, 1e3), randomDogImageFetch], true);
+    setTimeout(() => {
+        expect(qpp.checkTaskMeta('isProcessing')).toEqual(true);
+    }, 1000);
 });
 
 // test('process-streaming', async () => {
