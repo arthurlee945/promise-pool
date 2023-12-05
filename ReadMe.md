@@ -42,7 +42,7 @@ new PromisePool(SampleTest, {
 
 ## Useful Methods
 
--   enqueue
+-   .enqueue
     ```js
     /**
      * Add a promise to the queue
@@ -52,7 +52,7 @@ new PromisePool(SampleTest, {
     const processOnQueue = true;
     new PromisePool().enqueue(tasks, processOnQueue);
     ```
--   dequeue
+-   .dequeue
     ```js
     /**
      * Take out next promise in queue or undefined
@@ -60,7 +60,7 @@ new PromisePool(SampleTest, {
      */
     new PromisePool().dequeue();
     ```
--   peek
+-   .peek
     ```js
     /**
      * Take a peek at next promise to be processed in queue
@@ -76,7 +76,7 @@ new PromisePool(SampleTest, {
      */
     new PromisePool().isEmpty();
     ```
--   getTaskMeta
+-   .getTaskMeta
     ```js
     /**
      * Take a peek at next promise to be processed in queue
@@ -85,7 +85,7 @@ new PromisePool(SampleTest, {
      */
     new PromisePool().getTaskMeta('isProcessing');
     ```
--   setConcurrency
+-   .setConcurrency
     ```js
     /**
      * @param { number } concurrency number to update
@@ -103,14 +103,14 @@ new PromisePool(SampleTest, {
         //Do something
     });
     ```
--   stop
+-   .stop
     ```js
     /**
      * Stops Currently running process excluding already processing task set
      * @returns {Promise<(TReturn | PromiseSettledResult<TReturn>)[]>}
      */
     ```
--   process
+-   .process
 
     ```js
     /**
