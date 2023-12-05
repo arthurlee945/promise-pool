@@ -32,7 +32,8 @@
     "promises",
     "nodejs",
     "async",
-    "map"
+    "queue",
+    "promise-pool"
   ],
   "publishConfig": {
     "access": "public"
