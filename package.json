@@ -37,7 +37,7 @@
     "publishConfig": {
         "access": "public"
      },
-    "author": "arthur lee",
+    "author": "arthur lee <arthur.lee945@gmail.com>",
     "license": "MIT",
     "devDependencies": {
         "@babel/core": "^7.23.5",
