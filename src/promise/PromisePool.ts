@@ -7,14 +7,13 @@ const emitterEvents = {
 //eslint-disable-next-line @typescript-eslint/no-explicit-any
 type ProcessableItem<TReturn> = (..._args: any[]) => Promise<TReturn>;
 type TaskReturnType<TReturn = unknown, TSettle = true> = TSettle extends true ? PromiseSettledResult<TReturn> : TReturn;
-export type PromisePoolOpts<TReturn = unknown, TSettle extends boolean = true> = {
+export type PromisePoolOpts<TReturn = unknown> = {
     concurrency?: number;
-    processOnQueue?: boolean;
-    settle?: TSettle;
-    stream?: (_data: TReturn[]) => void;
+    settle?: boolean;
+    stream?: (_returns: TReturn[]) => void;
 };
 
-export class PromisePool<TReturn = unknown, TSettle extends boolean = true> {
+export class PromisePool<TReturn = unknown> {
     /**
      * The processable promises.
      */
@@ -26,23 +25,23 @@ export class PromisePool<TReturn = unknown, TSettle extends boolean = true> {
     /**
      * results
      */
-    readonly results: TaskReturnType<TReturn, TSettle>[] = [];
+    readonly results: TaskReturnType<TReturn, typeof this.settings.settle>[] = [];
     /**
      * emitter to check if new item's been added to items.
      */
-    private emitter: EventEmitter;
+    readonly emitter: EventEmitter;
     /**
      * currently running promise
      */
-    private runningProcess: Promise<TaskReturnType<TReturn, TSettle>[]> | null = null;
+    private runningProcess: Promise<TaskReturnType<TReturn, typeof this.settings.settle>[]> | null = null;
     /**
      * stream callback function
      */
-    private stream: PromisePoolOpts<TReturn, TSettle>['stream'];
+    private stream: PromisePoolOpts<TReturn>['stream'];
     /**
      * task meta to keep track on actions
      */
-    private readonly taskMeta: { updated: boolean; stopped: boolean; isProcessing: boolean };
+    readonly taskMeta: { updated: boolean; stopped: boolean; isProcessing: boolean };
     /**
      * class settings
      */
@@ -50,11 +49,11 @@ export class PromisePool<TReturn = unknown, TSettle extends boolean = true> {
     /**
      *
      * @param {ProcessableItem<TReturn>[]} items Promises to Process : (..._args: any[]) => Promise<TReturn>
-     * @param {settings} settings Default | concurrency is 10, processOnQueue is true
+     * @param {settings} settings Default | concurrency is 10
      */
-    constructor(items: ProcessableItem<TReturn>[] = [], opts: PromisePoolOpts<TReturn, TSettle> = {}) {
+    constructor(items: ProcessableItem<TReturn>[] = [], opts: PromisePoolOpts<TReturn> = {}) {
         this.items = items;
-        this.stream = opts?.stream;
+        this.stream = opts.stream;
         this.taskMeta = { updated: false, stopped: false, isProcessing: false };
         this.emitter = new EventEmitter();
         this.settings = { settle: opts.settle ?? true, concurrency: opts.concurrency ?? 10, stream: !!this.stream };
@@ -65,16 +64,16 @@ export class PromisePool<TReturn = unknown, TSettle extends boolean = true> {
     /**
      * Add a promise to the queue
      * @param { ProcessableItem<TReturn> } items (..._args: any[]) => Promise<TReturn>
-     * @returns {PromisePool}
+     * @returns {Promise<TaskReturnType<TReturn, typeof this.settings.settle>[]> | PromisePool}
      */
     enqueue<TProcess extends boolean = false>(
         _items: ProcessableItem<TReturn>[],
-        _processOnQueue: TProcess
-    ): TProcess extends true ? Promise<TaskReturnType<TReturn, TSettle>[]> : PromisePool<TReturn, TSettle>;
+        _processOnQueue?: TProcess
+    ): TProcess extends true ? Promise<TaskReturnType<TReturn, typeof this.settings.settle>[]> : PromisePool<TReturn>;
     enqueue(
         items: ProcessableItem<TReturn>[],
         processOnQueue = false
-    ): Promise<TaskReturnType<TReturn, TSettle>[]> | PromisePool<TReturn, TSettle> {
+    ): Promise<TaskReturnType<TReturn, typeof this.settings.settle>[]> | PromisePool<TReturn> {
         this.items.push(...items);
         this.taskMeta.updated = !!this.runningProcess;
         if (processOnQueue) return !this.runningProcess ? this.process() : this.runningProcess;
@@ -106,9 +105,10 @@ export class PromisePool<TReturn = unknown, TSettle extends boolean = true> {
     }
     /**
      * Check task meta
+     * @param { "updated" | "stopped" | "isProcessing" } opt
      * @returns { boolean }
      */
-    checkTaskMeta(opt: keyof typeof this.taskMeta) {
+    getTaskMeta(opt: keyof typeof this.taskMeta) {
         return this.taskMeta[opt];
     }
     //#endregion
@@ -126,7 +126,7 @@ export class PromisePool<TReturn = unknown, TSettle extends boolean = true> {
      * @param { (_data: TReturn[]) => void } cb  Add or Update stream callback function
      * @returns { PromisePool<TReturn> }
      */
-    setStream(cb: NonNullable<PromisePoolOpts<TReturn, TSettle>['stream']>) {
+    setStream(cb: NonNullable<PromisePoolOpts<TReturn>['stream']>) {
         this.settings.stream = true;
         this.stream = cb;
         return this;
@@ -134,8 +134,13 @@ export class PromisePool<TReturn = unknown, TSettle extends boolean = true> {
     //#endregion
 
     //#region --------------------------PROCESSING----------------------------
+    /**
+     * Stops Currently running process excluding already processing task set
+     * @returns {Promise<(TReturn | PromiseSettledResult<TReturn>)[]>}
+     */
     stop() {
         this.taskMeta.stopped = true;
+        return this.runningProcess;
     }
     private getResult() {
         this.taskMeta.updated = false;
@@ -145,32 +150,31 @@ export class PromisePool<TReturn = unknown, TSettle extends boolean = true> {
         return this.results;
     }
     private async taskProcess() {
-        if (this.isEmpty() || (this.runningProcess && !this.checkTaskMeta('updated'))) return this.results;
-        if (!this.checkTaskMeta('updated')) this.results.splice(0, this.results.length);
+        if (this.isEmpty() || (this.runningProcess && !this.getTaskMeta('updated'))) return this.results;
+        if (!this.getTaskMeta('updated')) this.results.splice(0, this.results.length);
         else this.taskMeta.updated = false;
 
         const loopCount = Math.ceil(this.items.length / this.settings.concurrency);
         for (let i = 0; i < loopCount; i++) {
             this.tasks.push(...this.dequeue());
             const taskPromises = this.tasks.map((t) => t());
-
-            this.results.push(
-                ...((await (this.settings.settle ? Promise.allSettled(taskPromises) : Promise.all(taskPromises))) as TaskReturnType<
-                    TReturn,
-                    TSettle
-                >[])
-            );
+            this.results.push(...(await (this.settings.settle ? Promise.allSettled(taskPromises) : Promise.all(taskPromises))));
             this.tasks.splice(0, this.settings.concurrency);
             if (this.settings.stream) this.emitter.emit(emitterEvents.stream, this.results);
-            if (this.checkTaskMeta('stopped')) return this.getResult();
-            if (this.checkTaskMeta('updated')) {
+            if (this.getTaskMeta('stopped')) return this.getResult();
+            if (this.getTaskMeta('updated')) {
                 await this.taskProcess();
                 break;
             }
         }
         return this.getResult();
     }
+    /**
+     * Starts the process
+     * @returns {Promise<(TReturn | PromiseSettledResult<TReturn>)[]>}
+     */
     process() {
+        if (this.runningProcess) return this.runningProcess;
         this.taskMeta.isProcessing = true;
         return (this.runningProcess = this.taskProcess());
     }

@@ -1,16 +1,27 @@
 {
     "name": "promise-pool",
-    "version": "0.0.1",
+    "version": "1.0.0",
     "description": "Queue based promise pool",
+    "engines": {
+        "node": ">=8"
+      },
     "files": [
         "dist"
     ],
     "main": "dist",
     "types": "dist",
+    "homepage": "https://github.com/arthurlee945/promise-pool",
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/arthurlee945/promise-pool.git"
+    },
+    "bugs": {
+        "url": "https://github.com/arthurlee945/promise-pool/issues"
+    },
     "scripts": {
-        "build": "tsc & cp ./src/types.d.ts ./dist",
-        "start": "ts-node ./src/testingph.ts",
+        "build": "tsc",
         "test": "jest",
+        "test:performance": "ts-node ./src/test/performance.ts",
         "lint": "eslint src --ext .js,.ts",
         "lint:fix": "eslint --fix src --ext .js,.ts",
         "format": "prettier --write src",

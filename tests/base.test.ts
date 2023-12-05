@@ -53,7 +53,7 @@ test('queuing-items-resolve-reject-check', async () => {
     )[0];
 
     expect(resolveArr).toStrictEqual({ status: 'fulfilled', value: 'queued promise' });
-    expect(qpp.checkTaskMeta('isProcessing')).toEqual(false);
+    expect(qpp.getTaskMeta('isProcessing')).toEqual(false);
 
     //Process on Queue
     const rejectArr = await qpp.enqueue(
@@ -67,27 +67,62 @@ test('queuing-items-resolve-reject-check', async () => {
     );
     expect(rejectArr.length).toBe(1);
     expect(rejectArr[0]).toStrictEqual({ status: 'rejected', reason: 'queued promise 2' });
-    expect(qpp.checkTaskMeta('isProcessing')).toBe(false);
+    expect(qpp.getTaskMeta('isProcessing')).toBe(false);
 });
 
 test('task-processing-status-checks', async () => {
     const testSet = [randomDogImageFetch];
-    let streamCount = 0;
     const qpp = new PromisePool(testSet, {
         concurrency: 2,
-        stream: (_d) => {
-            streamCount++;
-        },
     });
     //ADD forced delay with queue
-    const fProcess = qpp.enqueue([pause.bind(null, 2e3), pause.bind(null, 1e3), randomDogImageFetch], true);
-    setTimeout(() => {
-        expect(qpp.checkTaskMeta('isProcessing')).toEqual(true);
+    qpp.enqueue([pause.bind(null, 2e3), randomDogImageFetch, pause.bind(null, 1e3)], true);
+    setTimeout(async () => {
+        expect(qpp.getTaskMeta('isProcessing')).toEqual(true);
+        expect(qpp.getTaskMeta('updated')).toEqual(false);
+        expect(qpp.getTaskMeta('stopped')).toEqual(false);
+        qpp.enqueue([
+            () =>
+                new Promise((resolve) => {
+                    resolve('queued promise');
+                }),
+        ]);
+        expect(qpp.getTaskMeta('updated')).toBeTruthy();
+        const result = await qpp.process();
+        expect(result.length).toEqual(5);
+        expect(result[result.length - 1]).toStrictEqual({
+            status: 'fulfilled',
+            value: 'queued promise',
+        });
     }, 1000);
 });
 
-// test('process-streaming', async () => {
-//     const qpp = new PromisePool<unknown>([], {
-//         concurrency: 2,
-//     });
-// });
+test('process-stopping', async () => {
+    const qpp = new PromisePool<unknown>(
+        [pause.bind(null, 1e3), pause.bind(null, 1e3), pause.bind(null, 1e3), pause.bind(null, 2e3), pause.bind(null, 2e3)],
+        {
+            concurrency: 1,
+        }
+    );
+    qpp.process();
+    setTimeout(async () => {
+        const stoppedProcess = await qpp.stop();
+        if (!stoppedProcess) return;
+        expect(stoppedProcess.length).toEqual(3);
+        expect(qpp.getTaskMeta('isProcessing')).toEqual(false);
+    }, 2500);
+}, 10000);
+
+test('process-stream-cb', async () => {
+    let i = 1;
+    const qpp = new PromisePool<unknown>(
+        [pause.bind(null, 1e3), pause.bind(null, 1e3), pause.bind(null, 1e3), pause.bind(null, 2e3), pause.bind(null, 2e3)],
+        {
+            concurrency: 1,
+            stream: (result) => {
+                expect(result.length).toEqual(i++);
+            },
+        }
+    );
+    await qpp.process();
+}, 10000);
