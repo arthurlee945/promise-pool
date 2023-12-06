@@ -42,7 +42,7 @@ new PromisePool(SampleTest, {
 
 ## Useful Methods
 
--   enqueue
+-   **_enqueue_**
     ```js
     /**
      * Add a promise to the queue
@@ -52,7 +52,7 @@ new PromisePool(SampleTest, {
     const processOnQueue = true;
     new PromisePool().enqueue(tasks, processOnQueue);
     ```
--   dequeue
+-   **_dequeue_**
     ```js
     /**
      * Take out next promise in queue or undefined
@@ -60,7 +60,7 @@ new PromisePool(SampleTest, {
      */
     new PromisePool().dequeue();
     ```
--   peek
+-   **_peek_**
     ```js
     /**
      * Take a peek at next promise to be processed in queue
@@ -68,7 +68,7 @@ new PromisePool(SampleTest, {
      */
     new PromisePool().peek();
     ```
--   isEmpty
+-   **_isEmpty_**
     ```js
     /**
      * Check if there are processable items in queue
@@ -76,7 +76,7 @@ new PromisePool(SampleTest, {
      */
     new PromisePool().isEmpty();
     ```
--   getTaskMeta
+-   **_getTaskMeta_**
     ```js
     /**
      * Take a peek at next promise to be processed in queue
@@ -85,7 +85,7 @@ new PromisePool(SampleTest, {
      */
     new PromisePool().getTaskMeta('isProcessing');
     ```
--   setConcurrency
+-   **_setConcurrency_**
     ```js
     /**
      * @param { number } concurrency number to update
@@ -93,7 +93,7 @@ new PromisePool(SampleTest, {
      */
     new PromisePool().setConcurrency(100);
     ```
--   setStream
+-   **_setStream_**
     ```js
     /**
      * @param { (_data: TReturn[]) => void } cb  Add or Update stream callback function
@@ -103,14 +103,14 @@ new PromisePool(SampleTest, {
         //Do something
     });
     ```
--   stop
+-   **_stop_**
     ```js
     /**
      * Stops Currently running process excluding already processing task set
      * @returns {Promise<(TReturn | PromiseSettledResult<TReturn>)[]>}
      */
     ```
--   process
+-   **_process_**
 
     ```js
     /**
