@@ -23,9 +23,9 @@ Here’s an example using a concurrency of 2:
 ```js
 import { PromisePool } from 'promise-pool';
 
-const SampleTast = [() => new Promise((resolve) => resolve('Resolving Promise'))];
+const Tasks = [() => new Promise((resolve) => resolve('Resolving Promise'))];
 
-const result = new PromisePool(SampleTast).process();
+const result = new PromisePool(Tasks).process();
 ```
 
 The promise pool takes in this options
