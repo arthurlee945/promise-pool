@@ -1,6 +1,6 @@
 {
   "name": "@arthur.lee945/promise-pool",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Queue based promise pool",
   "engines": {
     "node": ">=8"
