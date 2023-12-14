@@ -17,9 +17,6 @@ devDependencies:
   '@ianvs/prettier-plugin-sort-imports':
     specifier: ^4.1.1
     version: 4.1.1(prettier@3.1.0)
-  '@supercharge/promise-pool':
-    specifier: ^3.1.0
-    version: 3.1.0
   '@types/eslint':
     specifier: ^8.44.7
     version: 8.44.7
@@ -1755,11 +1752,6 @@ packages:
     resolution: {integrity: sha512-V4BG07kuYSUkTCSBHG8G8TNhM+F19jXFWnQtzj+we8DrkpSBCee9Z3Ms8yiGer/dlmhe35/Xdgyo3/0rQKg7YA==}
     dependencies:
       '@sinonjs/commons': 3.0.0
-    dev: true
-
-  /@supercharge/promise-pool@3.1.0:
-    resolution: {integrity: sha512-gB3NukbIcYzRtPoE6dx9svQYPodxvnfQlaaQd8N/z87E6WaMfRE7o5HwB+LZ+KeM0nsNAq1n4TmBtfz1VCUR+Q==}
-    engines: {node: '>=8'}
     dev: true
 
   /@tsconfig/node10@1.0.9:
