@@ -26,7 +26,8 @@
     "lint:fix": "eslint --fix src --ext .js,.ts",
     "format": "prettier --write src",
     "clean": "rm -rf node_modules pnpm-lock.yaml",
-    "prepare": "husky install"
+    "prepare": "husky install",
+    "prepublishOnly" : "pnpm build"
   },
   "keywords": [
     "promises",
