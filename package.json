@@ -27,7 +27,7 @@
     "format": "prettier --write src",
     "clean": "rm -rf node_modules pnpm-lock.yaml",
     "prepare": "husky install",
-    "prepublishOnly" : "pnpm build"
+    "prepack": "pnpm build"
   },
   "keywords": [
     "promises",
@@ -42,16 +42,12 @@
   "author": "arthur lee <arthur.lee945@gmail.com>",
   "license": "MIT",
   "devDependencies": {
-    "@babel/core": "^7.23.5",
-    "@babel/preset-env": "^7.23.5",
-    "@babel/preset-typescript": "^7.23.3",
     "@ianvs/prettier-plugin-sort-imports": "^4.1.1",
     "@types/eslint": "^8.44.7",
     "@types/jest": "^29.5.10",
     "@types/node": "^20.10.0",
     "@typescript-eslint/eslint-plugin": "^6.12.0",
     "@typescript-eslint/parser": "^6.12.0",
-    "babel-jest": "^29.7.0",
     "eslint": "^8.54.0",
     "eslint-config-prettier": "^9.0.0",
     "eslint-plugin-import": "^2.29.0",
